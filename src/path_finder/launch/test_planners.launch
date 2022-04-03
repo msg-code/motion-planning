@@ -13,7 +13,7 @@
   <arg name="search_radius" value="6.0" />
   <arg name="search_time" value="0.2" />
   <arg name="max_tree_node_nums" value="5000" />
-
+  <arg name="use_informed_rrt_star" value = "true"/>
   <node pkg="path_finder" type="path_finder" name="path_finder_node" output="screen">
     <remap from="/global_cloud" to="$(arg global_env_pcd2_topic)"/>
 
@@ -29,7 +29,13 @@
     <param name="RRT_Star/search_radius" value="$(arg search_radius)" type="double"/>
     <param name="RRT_Star/search_time" value="$(arg search_time)" type="double"/>
     <param name="RRT_Star/max_tree_node_nums" value="$(arg max_tree_node_nums)" type="int"/>
-
+    
+    <param name="InformedRRTStar/steer_length" value="$(arg steer_length)" type="double"/>
+    <param name="InformedRRTStar/search_radius" value="$(arg search_radius)" type="double"/>
+    <param name="InformedRRTStar/search_time" value="$(arg search_time)" type="double"/>
+    <param name="InformedRRTStar/max_tree_node_nums" value="$(arg max_tree_node_nums)" type="int"/>
+    
+    <param name="use_informed_rrt_star" value = "$(arg use_informed_rrt_star)" type="bool"/>
   </node>
 
 </launch>

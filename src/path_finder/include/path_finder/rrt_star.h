@@ -271,7 +271,7 @@ namespace path_plan
         double min_dist_from_start(nearest_node->cost_from_start + dist2nearest);
         double cost_from_p(dist2nearest);
         RRTNode3DPtr min_node(nearest_node); //set the nearest_node as the default parent
-
+        // 
         // TODO Choose a parent according to potential cost-from-start values
         // ! Hints:
         // !  1. Use map_ptr_->isSegmentValid(p1, p2) to check line edge validity;
@@ -281,8 +281,18 @@ namespace path_plan
         // !  4. [Optional] You can sort the potential parents first in increasing order by cost-from-start value;
         // !  5. [Optional] You can store the collison-checking results for later usage in the Rewire procedure.
         // ! Implement your own code inside the following loop
+        /**/
+        auto cmp = [&](RRTNode3DPtr& a, RRTNode3DPtr& b){ return a->cost_from_start < b->cost_from_start; };
+        sort(neighbour_nodes.begin(), neighbour_nodes.end(), cmp);
+        
         for (auto &curr_node : neighbour_nodes)
         {
+          dist2nearest = calDist(curr_node->x, x_new);
+          if(curr_node->cost_from_start + dist2nearest < min_dist_from_start && map_ptr_->isSegmentValid(curr_node->x, x_new)){
+            min_node = curr_node;
+            cost_from_p = dist2nearest;
+            min_dist_from_start = curr_node->cost_from_start + dist2nearest;
+          }
         }
         // ! Implement your own code inside the above loop
 
@@ -329,7 +339,23 @@ namespace path_plan
         {
           double best_cost_before_rewire = goal_node_->cost_from_start;
           // ! -------------------------------------
+          double dist_to_x_new = calDist(x_new, curr_node->x);
+          // Delay Collision 
+          if(curr_node->cost_from_start <= new_node->cost_from_start + dist_to_x_new){
+            continue;
+          }
+          // Tree pruning
+          if(new_node->cost_from_start + dist_to_x_new + calDist(curr_node->x, goal_node_->x) >=best_cost_before_rewire){
+            continue;
+          }
+          // collision check
+          if(!map_ptr_->isSegmentValid(x_new, curr_node->x)){
+            continue;
+          }
+          // changeParent
+          changeNodeParent(curr_node, new_node, dist_to_x_new);
 
+          // !!!if  goal in rewire processing, then need judge now cost to goal whether is best after rewire!!!  
           // ! -------------------------------------
           if (best_cost_before_rewire > goal_node_->cost_from_start)
           {

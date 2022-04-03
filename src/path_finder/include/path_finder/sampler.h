@@ -52,7 +52,29 @@ public:
     sample.array() *= range_.array();
     sample += origin_;
   };
+  void informedSamplingoval(Eigen::Vector3d &sample){
 
+    Eigen::Vector3d p;
+    p[0] = normal_rand_(gen_);
+    p[1] = normal_rand_(gen_);
+    p[2] = normal_rand_(gen_);
+    double r = pow(uniform_rand_(gen_), 0.33333);
+    sample = r * p.normalized();
+    sample.array() *= radii_.array();
+    sample = rotation_ * sample;
+    sample += center_;
+  }
+
+  void setInformedTransRot(const Eigen::Vector3d &x_center, const Eigen::Matrix3d &rot)
+  {
+    center_ = x_center;
+    rotation_ = rot;
+  }
+
+  void setInformedSacling(const Eigen::Vector3d &scale)
+  {
+    radii_ = scale;
+  }
   // (0.0 - 1.0)
   double getUniRandNum()
   {
@@ -64,6 +86,10 @@ private:
   std::mt19937_64 gen_;
   std::uniform_real_distribution<double> uniform_rand_;
   std::normal_distribution<double> normal_rand_;
+
+  Eigen::Vector3d radii_, center_;
+  Eigen::Matrix3d rotation_;
+
 };
 
 #endif

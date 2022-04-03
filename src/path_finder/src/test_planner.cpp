@@ -22,7 +22,7 @@ OF SUCH DAMAGE.
 #include "occ_grid/occ_map.h"
 #include "path_finder/rrt_star.h"
 #include "visualization/visualization.hpp"
-
+#include "path_finder/informed_rrt_star.h"
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 
@@ -37,9 +37,9 @@ private:
     env::OccMap::Ptr env_ptr_;
     std::shared_ptr<visualization::Visualization> vis_ptr_;
     shared_ptr<path_plan::RRTStar> rrt_star_ptr_;
-
+    shared_ptr<path_plan::InformedRRTStar> informed_rrt_star_ptr_;
     Eigen::Vector3d start_, goal_;
-
+    bool use_informed_rrt_star;
 public:
     TesterPathFinder(const ros::NodeHandle &nh) : nh_(nh)
     {
@@ -47,10 +47,19 @@ public:
         env_ptr_->init(nh_);
 
         vis_ptr_ = std::make_shared<visualization::Visualization>(nh_);
-
+        nh_.param("use_informed_rrt_star", use_informed_rrt_star, true);
+        ROS_WARN_STREAM("[informedRRT*] use_informed_rrt_star: " << use_informed_rrt_star);
+        informed_rrt_star_ptr_.reset(new path_plan::InformedRRTStar(nh_, env_ptr_));
+        informed_rrt_star_ptr_->setVisualizer(vis_ptr_);
         rrt_star_ptr_.reset(new path_plan::RRTStar(nh_, env_ptr_));
         rrt_star_ptr_->setVisualizer(vis_ptr_);
-
+        // if(use_informed_rrt_star){
+        //     informed_rrt_star_ptr_.reset(new path_plan::InformedRRTStar(nh_, env_ptr_));
+        //     informed_rrt_star_ptr_->setVisualizer(vis_ptr_);
+        // }else{
+        //     rrt_star_ptr_.reset(new path_plan::RRTStar(nh_, env_ptr_));
+        //     rrt_star_ptr_->setVisualizer(vis_ptr_);
+        // }
         goal_sub_ = nh_.subscribe("/goal", 1, &TesterPathFinder::goalCallback, this);
         execution_timer_ = nh_.createTimer(ros::Duration(1), &TesterPathFinder::executionCallback, this);
         rcv_glb_obs_client_ = nh_.serviceClient<self_msgs_and_srvs::GlbObsRcv>("/pub_glb_obs");
@@ -67,19 +76,39 @@ public:
         ROS_INFO_STREAM("\n-----------------------------\ngoal rcved at " << goal_.transpose());
         vis_ptr_->visualize_a_ball(start_, 0.3, "start", visualization::Color::pink);
         vis_ptr_->visualize_a_ball(goal_, 0.3, "goal", visualization::Color::steelblue);
-
-        bool rrt_star_res = rrt_star_ptr_->plan(start_, goal_);
-        if (rrt_star_res)
-        {
-            vector<vector<Eigen::Vector3d>> routes = rrt_star_ptr_->getAllPaths();
-            vis_ptr_->visualize_path_list(routes, "rrt_star_paths", visualization::blue);
-            vector<Eigen::Vector3d> final_path = rrt_star_ptr_->getPath();
-            vis_ptr_->visualize_path(final_path, "rrt_star_final_path");
-            vis_ptr_->visualize_pointcloud(final_path, "rrt_star_final_wpts");
-            vector<std::pair<double, double>> slns = rrt_star_ptr_->getSolutions();
-            ROS_INFO_STREAM("[RRT*] final path len: " << slns.back().first);
-            start_ = goal_;
+        if(use_informed_rrt_star){
+            bool informed_rrt_star_res = informed_rrt_star_ptr_->plan(start_, goal_);
+            ROS_WARN("infored_rrt_star_res : %d",informed_rrt_star_res);
+            if (informed_rrt_star_res)
+            {
+                vector<vector<Eigen::Vector3d>> routes = informed_rrt_star_ptr_->getAllPaths();
+                ROS_WARN("length: %d",routes.size());
+                vis_ptr_->visualize_path_list(routes, "informed_rrt_star_paths", visualization::green);
+                vector<Eigen::Vector3d> final_path = informed_rrt_star_ptr_->getPath();
+                // for(int i =0;i<final_path.size();i++){
+                //     ROS_WARN("%f ,%f,%f",final_path[i][0], final_path[i][1],final_path[i][2]);
+                // }
+                vis_ptr_->visualize_path(final_path, "informed_rrt_star_final_path");
+                vis_ptr_->visualize_pointcloud(final_path, "informed_rrt_star_final_wpts");
+                vector<std::pair<double, double>> slns = informed_rrt_star_ptr_->getSolutions();
+                ROS_INFO_STREAM("[InformedRRT*] final path len: " << slns.back().first);
+                start_ = goal_;
+            }
+        }else{
+            bool rrt_star_res = rrt_star_ptr_->plan(start_, goal_);
+            if (rrt_star_res)
+            {
+                vector<vector<Eigen::Vector3d>> routes = rrt_star_ptr_->getAllPaths();
+                vis_ptr_->visualize_path_list(routes, "rrt_star_paths", visualization::blue);
+                vector<Eigen::Vector3d> final_path = rrt_star_ptr_->getPath();
+                vis_ptr_->visualize_path(final_path, "rrt_star_final_path");
+                vis_ptr_->visualize_pointcloud(final_path, "rrt_star_final_wpts");
+                vector<std::pair<double, double>> slns = rrt_star_ptr_->getSolutions();
+                ROS_INFO_STREAM("[RRT*] final path len: " << slns.back().first);
+                start_ = goal_;
+            }
         }
+
     }
 
     void executionCallback(const ros::TimerEvent &event)
